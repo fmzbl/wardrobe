@@ -3,11 +3,12 @@ import {
   type Category,
   type ClothingItem,
   type Outfit,
+  type SavedOutfit,
   CATEGORIES,
   CATEGORY_LABELS,
   EMPTY_OUTFIT,
 } from './types';
-import { getItems, addItem, removeItem, getOutfit, saveOutfit } from './store';
+import { getItems, addItem, removeItem, getOutfit, saveOutfit, getSavedOutfits, addSavedOutfit, removeSavedOutfit } from './store';
 import { stripBackground } from './bgRemoval';
 
 // ─── State ──────────────────────────────────────────────────────
@@ -20,6 +21,8 @@ interface State {
   uploadProgress: number;
   pendingFile: File | null;
   pendingPreviewUrl: string | null;
+  savedOutfits: SavedOutfit[];
+  savingOutfit: boolean;
 }
 
 const state: State = {
@@ -31,6 +34,8 @@ const state: State = {
   uploadProgress: 0,
   pendingFile: null,
   pendingPreviewUrl: null,
+  savedOutfits: [],
+  savingOutfit: false,
 };
 
 
@@ -58,6 +63,8 @@ function html(): string {
     <div class="model-wrap">
       ${outfitOverlays()}
     </div>
+    ${outfitActionsHTML()}
+    ${savedOutfitsHTML()}
   </aside>
 
   <!-- RIGHT: inventory -->
@@ -86,6 +93,39 @@ function html(): string {
 
 ${modalHTML()}
 `;
+}
+
+function outfitActionsHTML(): string {
+  if (state.savingOutfit) {
+    return `
+<div class="outfit-save-form">
+  <input type="text" id="outfit-name-input" placeholder="Outfit name" maxlength="60" />
+  <div class="outfit-save-btns">
+    <button id="btn-outfit-cancel" class="btn-ghost-sm">Cancel</button>
+    <button id="btn-outfit-confirm" class="btn-outline-sm">Save</button>
+  </div>
+</div>`;
+  }
+  return `<button id="btn-save-outfit" class="btn-outline-sm">Save outfit</button>`;
+}
+
+function savedOutfitsHTML(): string {
+  if (state.savedOutfits.length === 0) return '';
+  const rows = state.savedOutfits
+    .slice()
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map(
+      (o) => `
+<div class="saved-row">
+  <span class="saved-name">${o.name}</span>
+  <div class="saved-row-btns">
+    <button class="btn-load" data-load-id="${o.id}">Wear</button>
+    <button class="btn-delete-saved" data-delete-saved="${o.id}">×</button>
+  </div>
+</div>`
+    )
+    .join('');
+  return `<div class="saved-outfits"><p class="saved-label">Saved</p>${rows}</div>`;
 }
 
 function outfitOverlays(): string {
@@ -251,8 +291,60 @@ function bind() {
     if (file && file.type.startsWith('image/')) onFileSelected(file);
   });
 
-  // Save
+  // Save clothing item
   document.getElementById('btn-save')?.addEventListener('click', handleSave);
+
+  // Save outfit
+  document.getElementById('btn-save-outfit')?.addEventListener('click', () => {
+    state.savingOutfit = true;
+    render();
+    document.getElementById('outfit-name-input')?.focus();
+  });
+
+  document.getElementById('btn-outfit-cancel')?.addEventListener('click', () => {
+    state.savingOutfit = false;
+    render();
+  });
+
+  document.getElementById('btn-outfit-confirm')?.addEventListener('click', handleSaveOutfit);
+
+  (document.getElementById('outfit-name-input') as HTMLInputElement | null)?.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key === 'Enter') handleSaveOutfit();
+      if (e.key === 'Escape') { state.savingOutfit = false; render(); }
+    }
+  );
+
+  // Load saved outfit
+  document.querySelectorAll<HTMLButtonElement>('.btn-load').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.loadId!;
+      const saved = state.savedOutfits.find((o) => o.id === id);
+      if (!saved) return;
+      state.outfit = Object.fromEntries(
+        CATEGORIES.map((cat) => [
+          cat,
+          saved.items[cat] && state.items.some((i) => i.id === saved.items[cat])
+            ? saved.items[cat]
+            : null,
+        ])
+      ) as Outfit;
+      await saveOutfit(state.outfit);
+      updateModelOverlays();
+      CATEGORIES.forEach((cat) => refreshCards(cat));
+    });
+  });
+
+  // Delete saved outfit
+  document.querySelectorAll<HTMLButtonElement>('.btn-delete-saved').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.deleteSaved!;
+      await removeSavedOutfit(id);
+      state.savedOutfits = await getSavedOutfits();
+      render();
+    });
+  });
 
   // Auto-fill name from filename
   fileInput?.addEventListener('change', () => {
@@ -366,6 +458,23 @@ async function handleSave() {
   }
 }
 
+async function handleSaveOutfit() {
+  const nameInput = document.getElementById('outfit-name-input') as HTMLInputElement | null;
+  const name = nameInput?.value.trim();
+  if (!name) { nameInput?.focus(); return; }
+
+  const saved: SavedOutfit = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    name,
+    items: { ...state.outfit },
+    createdAt: Date.now(),
+  };
+  await addSavedOutfit(saved);
+  state.savedOutfits = await getSavedOutfits();
+  state.savingOutfit = false;
+  render();
+}
+
 function renderModalProgress() {
   const progressWrap = document.querySelector<HTMLDivElement>('.progress-wrap');
   const btn = document.getElementById('btn-save') as HTMLButtonElement | null;
@@ -430,7 +539,11 @@ function refreshCards(cat: Category) {
 
 // ─── Bootstrap ──────────────────────────────────────────────────
 async function init() {
-  [state.items, state.outfit] = await Promise.all([getItems(), getOutfit()]);
+  [state.items, state.outfit, state.savedOutfits] = await Promise.all([
+    getItems(),
+    getOutfit(),
+    getSavedOutfits(),
+  ]);
   render();
 }
 

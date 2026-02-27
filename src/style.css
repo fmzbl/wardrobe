@@ -73,6 +73,7 @@ main {
   flex-direction: column;
   align-items: center;
   padding: 32px 24px;
+  gap: 16px;
   background: var(--surface);
   overflow-y: auto;
 }
@@ -87,35 +88,51 @@ main {
 }
 
 .model-wrap {
+  flex: 1 1 0;
+  min-height: 200px;
   width: min(340px, calc(100% - 64px));
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
 }
 
-/* Clothing overlays — size to the cropped image */
+/* Clothing overlays — fill proportional zone */
 .outfit-overlay {
   pointer-events: none;
+  flex: 1;
+  min-height: 0;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
+
+/* Zone proportions matching body regions */
+.overlay-head   { flex-grow: 18; }
+.overlay-torso  { flex-grow: 42; }
+.overlay-legs   { flex-grow: 38; }
+.overlay-shoes  { flex-grow: 14; }
 
 .outfit-overlay > img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* Shoes pair: original + mirrored side by side */
 .shoes-pair {
   display: flex;
   width: 100%;
+  height: 100%;
 }
 
 .shoes-pair img {
   display: block;
   width: 50%;
-  height: auto;
+  height: 100%;
+  object-fit: contain;
 }
 
 .shoe-mirror { transform: scaleX(-1); }
@@ -485,6 +502,143 @@ main {
   background: var(--text);
   border-radius: 50%;
 }
+
+/* ─── Save Outfit ────────────────────────────────────────────── */
+.btn-outline-sm {
+  padding: 7px 14px;
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-outline-sm:hover { border-color: var(--text); background: var(--bg); }
+
+.btn-ghost-sm {
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  font-family: var(--font);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
+
+.btn-ghost-sm:hover { color: var(--text); }
+
+.outfit-save-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.outfit-save-form input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+}
+
+.outfit-save-form input:focus { border-color: var(--text); }
+
+.outfit-save-btns {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* ─── Saved Outfits List ─────────────────────────────────────── */
+.saved-outfits {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.saved-label {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-bottom: 2px;
+}
+
+.saved-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  gap: 8px;
+}
+
+.saved-name {
+  font-size: 12px;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.saved-row-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.btn-load {
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.btn-load:hover { border-color: var(--text); color: var(--text); }
+
+.btn-delete-saved {
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.btn-delete-saved:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
 
 /* ─── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }

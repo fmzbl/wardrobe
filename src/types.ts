@@ -25,3 +25,10 @@ export const EMPTY_OUTFIT: Outfit = {
   legs: null,
   shoes: null,
 };
+
+export interface SavedOutfit {
+  id: string;
+  name: string;
+  items: Outfit;
+  createdAt: number;
+}
