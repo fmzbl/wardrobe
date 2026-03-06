@@ -41,11 +41,11 @@ is-buffer/index.js:
 
     <div class="inventory-grid-wrap">
       <div class="inventory-grid">
-        ${e.map(ni).join("")}
         <button class="add-card" id="btn-add">
           <span class="add-icon">+</span>
           <span>Add</span>
         </button>
+        ${e.map(ni).join("")}
         ${e.length===0?'<p class="empty-state">No items yet</p>':""}
       </div>
     </div>
