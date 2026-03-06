@@ -111,7 +111,11 @@ function outfitActionsHTML(): string {
   </div>
 </div>`;
   }
-  return `<button id="btn-save-outfit" class="btn-outline-sm">Save outfit</button>`;
+  return `
+<div class="outfit-actions">
+  <button id="btn-save-outfit" class="btn-outline-sm">Save outfit</button>
+  <button id="btn-download-outfit" class="btn-ghost-sm" title="Download outfit image">↓ Download</button>
+</div>`;
 }
 
 function savedOutfitsHTML(): string {
@@ -125,6 +129,7 @@ function savedOutfitsHTML(): string {
   <span class="saved-name">${o.name}</span>
   <div class="saved-row-btns">
     <button class="btn-load" data-load-id="${o.id}">Wear</button>
+    <button class="btn-download-saved" data-download-saved="${o.id}" title="Download outfit image">↓</button>
     <button class="btn-delete-saved" data-delete-saved="${o.id}">×</button>
   </div>
 </div>`
@@ -161,6 +166,7 @@ function itemCard(item: ClothingItem): string {
   </div>
   <p class="item-name">${item.name}</p>
   <button class="item-delete" data-delete="${item.id}" title="Remove">×</button>
+  <button class="item-download" data-download-item="${item.id}" title="Download">↓</button>
 </div>`;
 }
 
@@ -352,6 +358,29 @@ function bind() {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (file) handleImport(file);
     (e.target as HTMLInputElement).value = '';
+  });
+
+  // Download item
+  document.querySelectorAll<HTMLButtonElement>('.item-download').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      downloadItem(btn.dataset.downloadItem!);
+    });
+  });
+
+  // Download current outfit
+  document.getElementById('btn-download-outfit')?.addEventListener('click', async () => {
+    await downloadOutfit(state.outfit, 'outfit');
+  });
+
+  // Download saved outfit
+  document.querySelectorAll<HTMLButtonElement>('.btn-download-saved').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.downloadSaved!;
+      const saved = state.savedOutfits.find((o) => o.id === id);
+      if (!saved) return;
+      await downloadOutfit(saved.items, saved.name);
+    });
   });
 
   // Delete saved outfit
@@ -610,6 +639,93 @@ async function handleImport(file: File) {
   [state.items, state.savedOutfits] = await Promise.all([getItems(), getSavedOutfits()]);
   render();
   alert(`Imported ${addedItems} item${addedItems !== 1 ? 's' : ''} and ${addedOutfits} outfit${addedOutfits !== 1 ? 's' : ''}.`);
+}
+
+// ─── Download ───────────────────────────────────────────────────
+function downloadItem(id: string) {
+  const item = state.items.find((i) => i.id === id);
+  if (!item) return;
+  const a = document.createElement('a');
+  a.href = item.imageData;
+  a.download = `${item.name}.png`;
+  a.click();
+}
+
+async function downloadOutfit(outfit: Outfit, name: string) {
+  const dataUrl = await generateOutfitImage(outfit);
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `${name}.png`;
+  a.click();
+}
+
+async function generateOutfitImage(outfit: Outfit): Promise<string> {
+  const W = 400, H = 700;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+
+  const zones: Array<{ cat: Category; grow: number }> = [
+    { cat: 'head', grow: 18 },
+    { cat: 'torso', grow: 42 },
+    { cat: 'legs', grow: 38 },
+    { cat: 'shoes', grow: 14 },
+  ];
+  const totalGrow = zones.reduce((s, z) => s + z.grow, 0);
+
+  let y = 0;
+  for (const zone of zones) {
+    const zoneH = Math.round((zone.grow / totalGrow) * H);
+    const itemId = outfit[zone.cat];
+    const item = itemId ? state.items.find((i) => i.id === itemId) : null;
+    if (item) {
+      await drawImageInZone(ctx, item.imageData, W, zoneH, y, zone.cat === 'shoes');
+    }
+    y += zoneH;
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
+function drawImageInZone(
+  ctx: CanvasRenderingContext2D,
+  src: string,
+  W: number,
+  zoneH: number,
+  zoneY: number,
+  shoes: boolean
+): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      if (shoes) {
+        const halfW = W / 2;
+        const scale = Math.min(halfW / img.width, zoneH / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        const dx = (halfW - dw) / 2;
+        const dy = (zoneH - dh) / 2;
+        // Left shoe
+        ctx.drawImage(img, dx, zoneY + dy, dw, dh);
+        // Right shoe (mirrored)
+        ctx.save();
+        ctx.translate(W, zoneY);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, dx, dy, dw, dh);
+        ctx.restore();
+      } else {
+        const scale = Math.min(W / img.width, zoneH / img.height);
+        const dw = img.width * scale;
+        const dh = img.height * scale;
+        const dx = (W - dw) / 2;
+        const dy = (zoneH - dh) / 2;
+        ctx.drawImage(img, dx, zoneY + dy, dw, dh);
+      }
+      resolve();
+    };
+    img.src = src;
+  });
 }
 
 // ─── Bootstrap ──────────────────────────────────────────────────
