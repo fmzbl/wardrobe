@@ -85,11 +85,11 @@ function html(): string {
 
     <div class="inventory-grid-wrap">
       <div class="inventory-grid">
-        ${catItems.map(itemCard).join('')}
         <button class="add-card" id="btn-add">
           <span class="add-icon">+</span>
           <span>Add</span>
         </button>
+        ${catItems.map(itemCard).join('')}
         ${catItems.length === 0 ? '<p class="empty-state">No items yet</p>' : ''}
       </div>
     </div>
