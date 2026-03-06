@@ -293,6 +293,47 @@ main {
 .item-card:hover .item-delete { display: flex; }
 .item-delete:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
 
+.item-rename {
+  position: absolute;
+  top: 54px;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: background 0.1s, color 0.1s;
+}
+
+.item-card:hover .item-rename { display: flex; }
+.item-rename:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
+
+.rename-input {
+  width: 100%;
+  font: inherit;
+  font-size: 10px;
+  padding: 2px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  letter-spacing: 0.03em;
+}
+
+.rename-input--saved {
+  font-size: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
 /* Add card */
 .add-card {
   aspect-ratio: 3/4;
@@ -690,6 +731,24 @@ main {
 }
 
 .btn-delete-saved:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
+
+.btn-rename-saved {
+  width: 20px;
+  height: 20px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.btn-rename-saved:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
 
 /* ─── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; height: 4px; }

@@ -128,6 +128,7 @@ function savedOutfitsHTML(): string {
 <div class="saved-row">
   <span class="saved-name">${o.name}</span>
   <div class="saved-row-btns">
+    <button class="btn-rename-saved" data-rename-saved="${o.id}" title="Rename">✎</button>
     <button class="btn-load" data-load-id="${o.id}">Wear</button>
     <button class="btn-download-saved" data-download-saved="${o.id}" title="Download outfit image">↓</button>
     <button class="btn-delete-saved" data-delete-saved="${o.id}">×</button>
@@ -165,6 +166,7 @@ function itemCard(item: ClothingItem): string {
     <img src="${item.imageData}" alt="${item.name}" loading="lazy" />
   </div>
   <p class="item-name">${item.name}</p>
+  <button class="item-rename" data-rename-item="${item.id}" title="Rename">✎</button>
   <button class="item-delete" data-delete="${item.id}" title="Remove">×</button>
   <button class="item-download" data-download-item="${item.id}" title="Download">↓</button>
 </div>`;
@@ -390,6 +392,21 @@ function bind() {
       await removeSavedOutfit(id);
       state.savedOutfits = await getSavedOutfits();
       render();
+    });
+  });
+
+  // Rename item
+  document.querySelectorAll<HTMLButtonElement>('.item-rename').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      startRenameItem(btn.closest<HTMLDivElement>('.item-card')!.querySelector('.item-name')!);
+    });
+  });
+
+  // Rename saved outfit
+  document.querySelectorAll<HTMLButtonElement>('.btn-rename-saved').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      startRenameSavedOutfit(btn.closest<HTMLDivElement>('.saved-row')!.querySelector('.saved-name')!);
     });
   });
 
@@ -725,6 +742,87 @@ function drawImageInZone(
       resolve();
     };
     img.src = src;
+  });
+}
+
+// ─── Rename ──────────────────────────────────────────────────────
+function startRenameItem(el: HTMLElement) {
+  const card = el.closest<HTMLDivElement>('.item-card')!;
+  const id = card.dataset.id!;
+  const currentName = el.textContent!.trim();
+
+  const input = document.createElement('input');
+  input.className = 'rename-input';
+  input.value = currentName;
+  input.maxLength = 60;
+  el.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let committed = false;
+  const restore = (name: string) => {
+    if (committed) return;
+    committed = true;
+    const p = document.createElement('p');
+    p.className = 'item-name';
+    p.textContent = name;
+    input.replaceWith(p);
+  };
+
+  const commit = async () => {
+    const newName = input.value.trim() || currentName;
+    restore(newName);
+    if (newName === currentName) return;
+    const item = state.items.find((i) => i.id === id);
+    if (!item) return;
+    item.name = newName;
+    await addItem(item);
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { committed = false; restore(currentName); }
+  });
+}
+
+function startRenameSavedOutfit(el: HTMLElement) {
+  const row = el.closest<HTMLDivElement>('.saved-row')!;
+  const id = row.querySelector<HTMLButtonElement>('[data-load-id]')!.dataset.loadId!;
+  const currentName = el.textContent!.trim();
+
+  const input = document.createElement('input');
+  input.className = 'rename-input rename-input--saved';
+  input.value = currentName;
+  input.maxLength = 60;
+  el.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let committed = false;
+  const restore = (name: string) => {
+    if (committed) return;
+    committed = true;
+    const span = document.createElement('span');
+    span.className = 'saved-name';
+    span.textContent = name;
+    input.replaceWith(span);
+  };
+
+  const commit = async () => {
+    const newName = input.value.trim() || currentName;
+    restore(newName);
+    if (newName === currentName) return;
+    const outfit = state.savedOutfits.find((o) => o.id === id);
+    if (!outfit) return;
+    outfit.name = newName;
+    await addSavedOutfit(outfit);
+  };
+
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { committed = false; restore(currentName); }
   });
 }
 
