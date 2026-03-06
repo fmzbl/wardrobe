@@ -57,6 +57,11 @@ header {
   font-family: var(--mono);
 }
 
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
 main {
   flex: 1;
   display: grid;

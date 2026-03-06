@@ -54,7 +54,12 @@ function html(): string {
 <header>
   <span class="logo">Wardrobe</span>
   <span class="header-count">${totalItems} piece${totalItems !== 1 ? 's' : ''}</span>
+  <div class="header-actions">
+    <button id="btn-import" class="btn-ghost-sm">Import</button>
+    <button id="btn-export" class="btn-ghost-sm">Export</button>
+  </div>
 </header>
+<input type="file" id="import-input" accept=".json" style="display:none" />
 
 <main>
   <!-- LEFT: human model -->
@@ -336,6 +341,19 @@ function bind() {
     });
   });
 
+  // Export
+  document.getElementById('btn-export')?.addEventListener('click', handleExport);
+
+  // Import
+  document.getElementById('btn-import')?.addEventListener('click', () => {
+    (document.getElementById('import-input') as HTMLInputElement).click();
+  });
+  (document.getElementById('import-input') as HTMLInputElement | null)?.addEventListener('change', (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) handleImport(file);
+    (e.target as HTMLInputElement).value = '';
+  });
+
   // Delete saved outfit
   document.querySelectorAll<HTMLButtonElement>('.btn-delete-saved').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -535,6 +553,63 @@ function refreshCards(cat: Category) {
       dot.remove();
     }
   });
+}
+
+// ─── Export / Import ────────────────────────────────────────────
+interface WardrobeExport {
+  version: number;
+  exportedAt: number;
+  items: ClothingItem[];
+  savedOutfits: SavedOutfit[];
+}
+
+async function handleExport() {
+  const [items, savedOutfits] = await Promise.all([getItems(), getSavedOutfits()]);
+  const payload: WardrobeExport = { version: 1, exportedAt: Date.now(), items, savedOutfits };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `wardrobe-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function handleImport(file: File) {
+  let payload: WardrobeExport;
+  try {
+    payload = JSON.parse(await file.text());
+  } catch {
+    alert('Invalid file — could not parse JSON.');
+    return;
+  }
+  if (payload.version !== 1 || !Array.isArray(payload.items) || !Array.isArray(payload.savedOutfits)) {
+    alert('Unrecognised export format.');
+    return;
+  }
+
+  const existingIds = new Set(state.items.map((i) => i.id));
+  const existingSavedIds = new Set(state.savedOutfits.map((o) => o.id));
+
+  let addedItems = 0;
+  let addedOutfits = 0;
+
+  for (const item of payload.items) {
+    if (!existingIds.has(item.id) && item.id && item.name && item.category && item.imageData) {
+      await addItem(item);
+      addedItems++;
+    }
+  }
+  for (const outfit of payload.savedOutfits) {
+    if (!existingSavedIds.has(outfit.id) && outfit.id && outfit.name && outfit.items) {
+      await addSavedOutfit(outfit);
+      addedOutfits++;
+    }
+  }
+
+  [state.items, state.savedOutfits] = await Promise.all([getItems(), getSavedOutfits()]);
+  render();
+  alert(`Imported ${addedItems} item${addedItems !== 1 ? 's' : ''} and ${addedOutfits} outfit${addedOutfits !== 1 ? 's' : ''}.`);
 }
 
 // ─── Bootstrap ──────────────────────────────────────────────────
